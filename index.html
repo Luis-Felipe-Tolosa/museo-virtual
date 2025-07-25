@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galería de Museo 3D</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        overflow: hidden;
+        font-family: "Arial", sans-serif;
+      }
+
+      #container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 24px;
+        z-index: 100;
+      }
+
+      #controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 14px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 10px;
+        z-index: 10;
+        line-height: 1.6;
+      }
+
+      #upload-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        z-index: 10;
+        max-width: 250px;
+      }
+
+      .empty-gallery {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.7);
+        text-align: center;
+        font-size: 18px;
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      #file-input {
+        margin: 10px 0;
+        color: white;
+        width: 100%;
+      }
+
+      #add-image {
+        background: #4caf50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+        width: 100%;
+      }
+
+      #add-image:hover {
+        background: #45a049;
+      }
+
+      .artwork-info {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 10;
+        max-width: 400px;
+      }
+
+      .artwork-info.visible {
+        opacity: 1;
+      }
+
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        z-index: 5;
+        pointer-events: none;
+      }
+
+      #crosshair::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2px;
+        height: 12px;
+        background: rgba(255, 255, 255, 0.8);
+        transform: translate(-50%, -50%);
+      }
+
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 12px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.8);
+        transform: translate(-50%, -50%);
+      }
+
+      #status {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+      }
+
+      #museum-info {
+        position: absolute;
+        bottom: 80px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 12px;
+        max-width: 200px;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="loading">Cargando galería...</div>
+
+      <div id="controls">
+        <strong>Controles:</strong><br />
+        W/S - Adelante/Atrás<br />
+        A/D - Izquierda/Derecha<br />
+        Mouse - Mirar alrededor<br />
+        Click - Activar controles<br />
+      </div>
+
+      <div id="upload-panel">
+        <strong>Agregar Obra</strong><br />
+        <small>Selecciona imágenes para agregar al museo</small><br />
+        <input type="file" id="file-input" accept="image/*" multiple />
+        <button id="add-image">Subir Imágenes</button>
+      </div>
+
+      <div id="crosshair"></div>
+      <div class="artwork-info" id="artwork-info">
+        <div
+          id="artwork-title"
+          style="font-size: 18px; font-weight: bold; margin-bottom: 8px"
+        ></div>
+        <div
+          id="artwork-description"
+          style="font-size: 14px; line-height: 1.4"
+        ></div>
+        <div
+          id="artwork-details"
+          style="font-size: 12px; margin-top: 8px; opacity: 0.8"
+        ></div>
+      </div>
+
+      <div id="status">Click para activar controles</div>
+
+      <div id="museum-info">
+        <strong>🏛️ Galería Personal</strong><br />
+        <small
+          >Una experiencia inmersiva para exhibir tu colección digital</small
+        >
+      </div>
+
+      <div class="empty-gallery" id="empty-message">
+        <div>🖼️ Tu galería personal</div>
+        <div style="margin-top: 10px; font-size: 14px">
+          Sube tus imágenes para comenzar
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      let scene, camera, renderer;
+      let moveForward = false,
+        moveBackward = false,
+        moveLeft = false,
+        moveRight = false;
+      let velocity = new THREE.Vector3();
+      let direction = new THREE.Vector3();
+      let prevTime = performance.now();
+      let artworks = [];
+      let raycaster = new THREE.Raycaster();
+      let mouse = new THREE.Vector2(0, 0);
+      let currentArtwork = null;
+      let isPointerLocked = false;
+      let yaw = 0;
+      let pitch = 0;
+
+      function init() {
+        // Crear escena
+        scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x222222, 0, 100);
+
+        // Crear cámara
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0, 5, 0);
+
+        // Crear renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x222222);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById("container").appendChild(renderer.domElement);
+
+        // Crear la sala
+        createRoom();
+
+        // Iluminación
+        setupLighting();
+
+        // Agregar decoraciones de museo
+        addMuseumDecorations();
+
+        // Controles
+        setupControls();
+
+        // Event listeners
+        setupEventListeners();
+
+        // Ocultar loading
+        document.getElementById("loading").style.display = "none";
+
+        // Iniciar animación
+        animate();
+      }
+
+      function createRoom() {
+        const roomSize = 45; // Agrandamos un poco la sala
+        const wallHeight = 16;
+
+        // Materiales más claros
+        const floorMaterial = new THREE.MeshLambertMaterial({
+          color: 0x888888,
+          map: createFloorTexture(),
+        });
+        const wallMaterial = new THREE.MeshLambertMaterial({
+          color: 0xfafafa,
+          map: createWallTexture(),
+        });
+        const ceilingMaterial = new THREE.MeshLambertMaterial({
+          color: 0xf8f8f8,
+          map: createCeilingTexture(),
+        });
+
+        // Suelo
+        const floorGeometry = new THREE.PlaneGeometry(roomSize, roomSize);
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Techo
+        const ceilingGeometry = new THREE.PlaneGeometry(roomSize, roomSize);
+        const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = wallHeight;
+        scene.add(ceiling);
+
+        // Paredes con molduras
+        const wallThickness = 0.5;
+
+        // Pared frontal (Norte)
+        const frontWall = new THREE.Mesh(
+          new THREE.BoxGeometry(roomSize, wallHeight, wallThickness),
+          wallMaterial
+        );
+        frontWall.position.set(0, wallHeight / 2, -roomSize / 2);
+        frontWall.receiveShadow = true;
+        scene.add(frontWall);
+
+        // Pared trasera (Sur)
+        const backWall = new THREE.Mesh(
+          new THREE.BoxGeometry(roomSize, wallHeight, wallThickness),
+          wallMaterial
+        );
+        backWall.position.set(0, wallHeight / 2, roomSize / 2);
+        backWall.receiveShadow = true;
+        scene.add(backWall);
+
+        // Pared izquierda (Oeste)
+        const leftWall = new THREE.Mesh(
+          new THREE.BoxGeometry(wallThickness, wallHeight, roomSize),
+          wallMaterial
+        );
+        leftWall.position.set(-roomSize / 2, wallHeight / 2, 0);
+        leftWall.receiveShadow = true;
+        scene.add(leftWall);
+
+        // Pared derecha (Este)
+        const rightWall = new THREE.Mesh(
+          new THREE.BoxGeometry(wallThickness, wallHeight, roomSize),
+          wallMaterial
+        );
+        rightWall.position.set(roomSize / 2, wallHeight / 2, 0);
+        rightWall.receiveShadow = true;
+        scene.add(rightWall);
+
+        // Agregar molduras decorativas
+        addWallMoldings(roomSize, wallHeight);
+      }
+
+      function addWallMoldings(roomSize, wallHeight) {
+        const moldingMaterial = new THREE.MeshLambertMaterial({
+          color: 0xe8e8e8,
+        });
+
+        // Moldura superior (cornisa)
+        const topMoldingGeometry = new THREE.BoxGeometry(
+          roomSize + 1,
+          0.8,
+          0.8
+        );
+
+        // Molduras en cada pared
+        const positions = [
+          { x: 0, z: -roomSize / 2 - 0.1, ry: 0 },
+          { x: 0, z: roomSize / 2 + 0.1, ry: 0 },
+          { x: -roomSize / 2 - 0.1, z: 0, ry: Math.PI / 2 },
+          { x: roomSize / 2 + 0.1, z: 0, ry: Math.PI / 2 },
+        ];
+
+        positions.forEach((pos) => {
+          const topMolding = new THREE.Mesh(
+            topMoldingGeometry,
+            moldingMaterial
+          );
+          topMolding.position.set(pos.x, wallHeight - 0.4, pos.z);
+          topMolding.rotation.y = pos.ry;
+          topMolding.castShadow = true;
+          scene.add(topMolding);
+
+          // Moldura inferior (zócalo)
+          const bottomMolding = new THREE.Mesh(
+            new THREE.BoxGeometry(roomSize + 1, 1.2, 0.6),
+            moldingMaterial
+          );
+          bottomMolding.position.set(pos.x, 0.6, pos.z);
+          bottomMolding.rotation.y = pos.ry;
+          bottomMolding.castShadow = true;
+          scene.add(bottomMolding);
+        });
+      }
+
+      function addMuseumDecorations() {
+        // Agregar pedestales en las esquinas
+        addPedestals();
+
+        // Agregar plantas decorativas
+        addPlants();
+
+        // Agregar bancos para sentarse
+        addBenches();
+
+        // Agregar información del museo
+        addMuseumSigns();
+
+        // Agregar columnas decorativas
+        addColumns();
+
+        // Agregar esculturas pequeñas
+        addSculptures();
+      }
+
+      function addPedestals() {
+        const pedestalMaterial = new THREE.MeshLambertMaterial({
+          color: 0xcccccc,
+        });
+
+        const positions = [
+          { x: -16, z: -16 },
+          { x: 16, z: -16 },
+          { x: -16, z: 16 },
+          { x: 16, z: 16 },
+        ];
+
+        positions.forEach((pos) => {
+          // Base del pedestal
+          const baseGeometry = new THREE.CylinderGeometry(2, 2.5, 0.5, 8);
+          const base = new THREE.Mesh(baseGeometry, pedestalMaterial);
+          base.position.set(pos.x, 0.25, pos.z);
+          base.castShadow = true;
+          base.receiveShadow = true;
+          scene.add(base);
+
+          // Columna del pedestal
+          const columnGeometry = new THREE.CylinderGeometry(1.8, 1.8, 4, 8);
+          const column = new THREE.Mesh(columnGeometry, pedestalMaterial);
+          column.position.set(pos.x, 2.5, pos.z);
+          column.castShadow = true;
+          column.receiveShadow = true;
+          scene.add(column);
+
+          // Tapa del pedestal
+          const topGeometry = new THREE.CylinderGeometry(2.2, 2, 0.3, 8);
+          const top = new THREE.Mesh(topGeometry, pedestalMaterial);
+          top.position.set(pos.x, 4.65, pos.z);
+          top.castShadow = true;
+          top.receiveShadow = true;
+          scene.add(top);
+
+          // Agregar una pequeña escultura geométrica encima
+          const sculptureGeometry = new THREE.OctahedronGeometry(0.8);
+          const sculptureMaterial = new THREE.MeshLambertMaterial({
+            color: 0x8b4513,
+            shininess: 30,
+          });
+          const sculpture = new THREE.Mesh(
+            sculptureGeometry,
+            sculptureMaterial
+          );
+          sculpture.position.set(pos.x, 5.8, pos.z);
+          sculpture.rotation.x = Math.PI / 4;
+          sculpture.rotation.z = Math.PI / 4;
+          sculpture.castShadow = true;
+          scene.add(sculpture);
+        });
+      }
+
+      function addPlants() {
+        const positions = [
+          { x: -10, z: -20 },
+          { x: 10, z: -20 },
+          { x: -20, z: -10 },
+          { x: 20, z: -10 },
+          { x: -20, z: 10 },
+          { x: 20, z: 10 },
+          { x: -10, z: 20 },
+          { x: 10, z: 20 },
+        ];
+
+        positions.forEach((pos) => {
+          // Maceta
+          const potGeometry = new THREE.CylinderGeometry(1.2, 1, 1.5, 8);
+          const potMaterial = new THREE.MeshLambertMaterial({
+            color: 0x654321,
+          });
+          const pot = new THREE.Mesh(potGeometry, potMaterial);
+          pot.position.set(pos.x, 0.75, pos.z);
+          pot.castShadow = true;
+          pot.receiveShadow = true;
+          scene.add(pot);
+
+          // Planta (usando esferas para simular follaje)
+          const plantMaterial = new THREE.MeshLambertMaterial({
+            color: 0x228b22,
+          });
+
+          // Tallo
+          const stemGeometry = new THREE.CylinderGeometry(0.1, 0.15, 2, 6);
+          const stemMaterial = new THREE.MeshLambertMaterial({
+            color: 0x8b4513,
+          });
+          const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+          stem.position.set(pos.x, 2.5, pos.z);
+          stem.castShadow = true;
+          scene.add(stem);
+
+          // Hojas (esferas verdes)
+          for (let i = 0; i < 5; i++) {
+            const leafGeometry = new THREE.SphereGeometry(
+              0.4 + Math.random() * 0.3,
+              8,
+              6
+            );
+            const leaf = new THREE.Mesh(leafGeometry, plantMaterial);
+            leaf.position.set(
+              pos.x + (Math.random() - 0.5) * 1.5,
+              2.5 + Math.random() * 1.5,
+              pos.z + (Math.random() - 0.5) * 1.5
+            );
+            leaf.castShadow = true;
+            scene.add(leaf);
+          }
+        });
+      }
+
+      function addBenches() {
+        const benchMaterial = new THREE.MeshLambertMaterial({
+          color: 0x8b4513,
+        });
+
+        const positions = [
+          { x: 0, z: -12, ry: 0 },
+          { x: 0, z: 12, ry: Math.PI },
+          { x: -12, z: 0, ry: Math.PI / 2 },
+          { x: 12, z: 0, ry: -Math.PI / 2 },
+        ];
+
+        positions.forEach((pos) => {
+          // Asiento del banco
+          const seatGeometry = new THREE.BoxGeometry(4, 0.3, 1.2);
+          const seat = new THREE.Mesh(seatGeometry, benchMaterial);
+          seat.position.set(pos.x, 1.5, pos.z);
+          seat.rotation.y = pos.ry;
+          seat.castShadow = true;
+          seat.receiveShadow = true;
+          scene.add(seat);
+
+          // Respaldo
+          const backGeometry = new THREE.BoxGeometry(4, 1.5, 0.2);
+          const back = new THREE.Mesh(backGeometry, benchMaterial);
+          back.position.set(pos.x, 2.25, pos.z);
+          back.rotation.y = pos.ry;
+
+          // Ajustar posición del respaldo según la orientación
+          if (pos.ry === 0) back.position.z -= 0.5;
+          else if (pos.ry === Math.PI) back.position.z += 0.5;
+          else if (pos.ry === Math.PI / 2) back.position.x += 0.5;
+          else if (pos.ry === -Math.PI / 2) back.position.x -= 0.5;
+
+          back.castShadow = true;
+          back.receiveShadow = true;
+          scene.add(back);
+
+          // Patas del banco
+          for (let i = 0; i < 4; i++) {
+            const legGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8);
+            const leg = new THREE.Mesh(legGeometry, benchMaterial);
+
+            const xOffset = i % 2 === 0 ? -1.7 : 1.7;
+            const zOffset = i < 2 ? -0.4 : 0.4;
+
+            if (pos.ry === 0 || pos.ry === Math.PI) {
+              leg.position.set(pos.x + xOffset, 0.75, pos.z + zOffset);
+            } else {
+              leg.position.set(pos.x + zOffset, 0.75, pos.z + xOffset);
+            }
+
+            leg.castShadow = true;
+            leg.receiveShadow = true;
+            scene.add(leg);
+          }
+        });
+      }
+
+      function addMuseumSigns() {
+        const signMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+
+        // Cartel de entrada
+        const signGeometry = new THREE.BoxGeometry(6, 2, 0.2);
+        const sign = new THREE.Mesh(signGeometry, signMaterial);
+        sign.position.set(0, 8, -21);
+        sign.castShadow = true;
+        scene.add(sign);
+
+        // Texto del cartel (simulado con textura)
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 170;
+        const context = canvas.getContext("2d");
+
+        context.fillStyle = "#333333";
+        context.fillRect(0, 0, 512, 170);
+
+        context.fillStyle = "#ffffff";
+        context.font = "bold 40px Arial";
+        context.textAlign = "center";
+        context.fillText("GALERÍA PERSONAL", 256, 60);
+
+        context.font = "24px Arial";
+        context.fillText("Una experiencia inmersiva", 256, 100);
+        context.fillText("de arte digital", 256, 130);
+
+        const signTexture = new THREE.CanvasTexture(canvas);
+        const textMaterial = new THREE.MeshLambertMaterial({
+          map: signTexture,
+        });
+
+        const textPlane = new THREE.PlaneGeometry(6, 2);
+        const textMesh = new THREE.Mesh(textPlane, textMaterial);
+        textMesh.position.set(0, 8, -20.9);
+        scene.add(textMesh);
+
+        // Señales direccionales pequeñas
+        const directions = [
+          { text: "→ Colección Principal", x: -15, z: -18, ry: 0 },
+          { text: "← Obras Temporales", x: 15, z: -18, ry: 0 },
+          { text: "Sala de Descanso ↑", x: -18, z: 0, ry: Math.PI / 2 },
+          { text: "Información ↓", x: 18, z: 0, ry: -Math.PI / 2 },
+        ];
+
+        directions.forEach((dir) => {
+          // Poste de la señal
+          const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+          const poleMaterial = new THREE.MeshLambertMaterial({
+            color: 0x666666,
+          });
+          const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+          pole.position.set(dir.x, 1.5, dir.z);
+          pole.castShadow = true;
+          scene.add(pole);
+
+          // Placa de la señal
+          const plateGeometry = new THREE.BoxGeometry(3, 0.8, 0.1);
+          const plateMaterial = new THREE.MeshLambertMaterial({
+            color: 0xffffff,
+          });
+          const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+          plate.position.set(dir.x, 2.8, dir.z);
+          plate.rotation.y = dir.ry;
+          plate.castShadow = true;
+          scene.add(plate);
+        });
+      }
+
+      function addColumns() {
+        const columnMaterial = new THREE.MeshLambertMaterial({
+          color: 0xe8e8e8,
+        });
+
+        const positions = [
+          { x: -8, z: -18 },
+          { x: 8, z: -18 },
+          { x: -8, z: 18 },
+          { x: 8, z: 18 },
+        ];
+
+        positions.forEach((pos) => {
+          // Base de la columna
+          const baseGeometry = new THREE.CylinderGeometry(1.2, 1.5, 1, 12);
+          const base = new THREE.Mesh(baseGeometry, columnMaterial);
+          base.position.set(pos.x, 0.5, pos.z);
+          base.castShadow = true;
+          base.receiveShadow = true;
+          scene.add(base);
+
+          // Fuste de la columna
+          const shaftGeometry = new THREE.CylinderGeometry(1, 1, 12, 12);
+          const shaft = new THREE.Mesh(shaftGeometry, columnMaterial);
+          shaft.position.set(pos.x, 7, pos.z);
+          shaft.castShadow = true;
+          shaft.receiveShadow = true;
+          scene.add(shaft);
+
+          // Capitel
+          const capitalGeometry = new THREE.CylinderGeometry(1.3, 1, 2, 12);
+          const capital = new THREE.Mesh(capitalGeometry, columnMaterial);
+          capital.position.set(pos.x, 14, pos.z);
+          capital.castShadow = true;
+          capital.receiveShadow = true;
+          scene.add(capital);
+        });
+      }
+
+      function addSculptures() {
+        const sculptures = [
+          {
+            geometry: new THREE.ConeGeometry(0.8, 2.5, 8),
+            material: new THREE.MeshLambertMaterial({ color: 0x8b4513 }),
+            position: { x: -6, y: 1.25, z: -8 },
+            rotation: { x: 0, y: 0, z: 0 },
+          },
+          {
+            geometry: new THREE.TorusGeometry(0.8, 0.3, 8, 16),
+            material: new THREE.MeshLambertMaterial({ color: 0x4169e1 }),
+            position: { x: 6, y: 2, z: -8 },
+            rotation: { x: Math.PI / 2, y: 0, z: 0 },
+          },
+          {
+            geometry: new THREE.TetrahedronGeometry(1.2),
+            material: new THREE.MeshLambertMaterial({ color: 0xdc143c }),
+            position: { x: -6, y: 1.5, z: 8 },
+            rotation: { x: Math.PI / 4, y: Math.PI / 4, z: 0 },
+          },
+          {
+            geometry: new THREE.DodecahedronGeometry(1),
+            material: new THREE.MeshLambertMaterial({ color: 0x32cd32 }),
+            position: { x: 6, y: 1.8, z: 8 },
+            rotation: { x: Math.PI / 6, y: Math.PI / 3, z: Math.PI / 6 },
+          },
+        ];
+
+        sculptures.forEach((sculpt) => {
+          const sculpture = new THREE.Mesh(sculpt.geometry, sculpt.material);
+          sculpture.position.set(
+            sculpt.position.x,
+            sculpt.position.y,
+            sculpt.position.z
+          );
+          sculpture.rotation.set(
+            sculpt.rotation.x,
+            sculpt.rotation.y,
+            sculpt.rotation.z
+          );
+          sculpture.castShadow = true;
+          sculpture.receiveShadow = true;
+          scene.add(sculpture);
+
+          // Placa informativa para cada escultura
+          const plateGeometry = new THREE.BoxGeometry(1.5, 0.3, 0.05);
+          const plateMaterial = new THREE.MeshLambertMaterial({
+            color: 0x333333,
+          });
+          const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+          plate.position.set(sculpt.position.x, 0.5, sculpt.position.z + 1.5);
+          plate.castShadow = true;
+          scene.add(plate);
+        });
+      }
+
+      function createFloorTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 512;
+        const context = canvas.getContext("2d");
+
+        // Base de mármol más elegante
+        context.fillStyle = "#f5f5f5";
+        context.fillRect(0, 0, 512, 512);
+
+        // Crear patrón de mármol con vetas más realistas
+        context.strokeStyle = "#e0e0e0";
+        context.lineWidth = 3;
+        for (let i = 0; i < 25; i++) {
+          context.beginPath();
+          context.moveTo(Math.random() * 512, Math.random() * 512);
+          context.bezierCurveTo(
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512
+          );
+          context.stroke();
+        }
+
+        // Vetas más oscuras y elegantes
+        context.strokeStyle = "#d0d0d0";
+        context.lineWidth = 1;
+        for (let i = 0; i < 20; i++) {
+          context.beginPath();
+          context.moveTo(Math.random() * 512, Math.random() * 512);
+          context.quadraticCurveTo(
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 512
+          );
+          context.stroke();
+        }
+
+        // Líneas de separación entre baldosas más elegantes
+        context.strokeStyle = "#c8c8c8";
+        context.lineWidth = 2;
+        for (let i = 0; i <= 512; i += 128) {
+          context.beginPath();
+          context.moveTo(i, 0);
+          context.lineTo(i, 512);
+          context.stroke();
+
+          context.beginPath();
+          context.moveTo(0, i);
+          context.lineTo(512, i);
+          context.stroke();
+        }
+
+        // Brillo sutil en las baldosas
+        context.fillStyle = "rgba(255, 255, 255, 0.1)";
+        for (let x = 64; x < 512; x += 128) {
+          for (let y = 64; y < 512; y += 128) {
+            context.fillRect(x, y, 64, 64);
+          }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(8, 8);
+        return texture;
+      }
+
+      function createWallTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 512;
+        const context = canvas.getContext("2d");
+
+        // Base blanca con textura sutil
+        context.fillStyle = "#fafafa";
+        context.fillRect(0, 0, 512, 512);
+
+        // Crear textura de pintura con rodillo más realista
+        for (let i = 0; i < 1500; i++) {
+          const opacity = Math.random() * 0.02;
+          context.fillStyle = `rgba(240, 240, 240, ${opacity})`;
+          context.fillRect(
+            Math.random() * 512,
+            Math.random() * 512,
+            Math.random() * 6 + 1,
+            Math.random() * 6 + 1
+          );
+        }
+
+        // Agregar sutil textura vertical (como pintura aplicada con rodillo)
+        for (let x = 0; x < 512; x += 3) {
+          const opacity = Math.random() * 0.015;
+          context.fillStyle = `rgba(235, 235, 235, ${opacity})`;
+          context.fillRect(x, 0, 1, 512);
+        }
+
+        // Textura horizontal muy sutil
+        for (let y = 0; y < 512; y += 8) {
+          const opacity = Math.random() * 0.008;
+          context.fillStyle = `rgba(245, 245, 245, ${opacity})`;
+          context.fillRect(0, y, 512, 1);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);
+        return texture;
+      }
+
+      function createCeilingTexture() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const context = canvas.getContext("2d");
+
+        // Base del techo más elegante
+        context.fillStyle = "#f8f8f8";
+        context.fillRect(0, 0, 256, 256);
+
+        // Textura sutil de estuco
+        for (let i = 0; i < 800; i++) {
+          const opacity = Math.random() * 0.03;
+          context.fillStyle = `rgba(245, 245, 245, ${opacity})`;
+          const size = Math.random() * 3 + 1;
+          context.fillRect(
+            Math.random() * 256,
+            Math.random() * 256,
+            size,
+            size
+          );
+        }
+
+        // Patrón de paneles más detallado
+        context.strokeStyle = "rgba(240, 240, 240, 0.4)";
+        context.lineWidth = 1;
+        for (let i = 0; i <= 256; i += 64) {
+          context.beginPath();
+          context.moveTo(i, 0);
+          context.lineTo(i, 256);
+          context.stroke();
+
+          context.beginPath();
+          context.moveTo(0, i);
+          context.lineTo(256, i);
+          context.stroke();
+        }
+
+        // Marcos de paneles más gruesos
+        context.strokeStyle = "rgba(235, 235, 235, 0.6)";
+        context.lineWidth = 2;
+        for (let x = 8; x < 256; x += 64) {
+          for (let y = 8; y < 256; y += 64) {
+            context.strokeRect(x, y, 48, 48);
+          }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(6, 6);
+        return texture;
+      }
+
+      function setupLighting() {
+        // Luz ambiental más suave para ambiente de museo
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+
+        // Luz principal del techo más profesional
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(0, 15, 0);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.near = 0.1;
+        mainLight.shadow.camera.far = 50;
+        mainLight.shadow.camera.left = -25;
+        mainLight.shadow.camera.right = 25;
+        mainLight.shadow.camera.top = 25;
+        mainLight.shadow.camera.bottom = -25;
+        scene.add(mainLight);
+
+        // Luces de galería profesionales para cada área de cuadros
+        const positions = [
+          { x: 0, z: -20 }, // Norte
+          { x: 14, z: -14 }, // Noreste
+          { x: 20, z: 0 }, // Este
+          { x: 14, z: 14 }, // Sureste
+          { x: 0, z: 20 }, // Sur
+          { x: -14, z: 14 }, // Suroeste
+          { x: -20, z: 0 }, // Oeste
+          { x: -14, z: -14 }, // Noroeste
+        ];
+
+        positions.forEach((pos) => {
+          // Spotlight principal para cada posición de cuadro
+          const spotlight = new THREE.SpotLight(
+            0xffffff,
+            1.8,
+            35,
+            Math.PI / 7,
+            0.3
+          );
+          spotlight.position.set(pos.x, 14, pos.z);
+          spotlight.target.position.set(pos.x, 7, pos.z);
+          spotlight.castShadow = true;
+          spotlight.shadow.mapSize.width = 512;
+          spotlight.shadow.mapSize.height = 512;
+          scene.add(spotlight);
+          scene.add(spotlight.target);
+
+          // Luz de relleno suave
+          const fillLight = new THREE.PointLight(0xffffff, 0.4, 20);
+          fillLight.position.set(pos.x, 10, pos.z);
+          scene.add(fillLight);
+        });
+
+        // Iluminación de ambiente general más suave
+        const generalLights = [
+          { x: -15, y: 12, z: -15 },
+          { x: 15, y: 12, z: -15 },
+          { x: -15, y: 12, z: 15 },
+          { x: 15, y: 12, z: 15 },
+          { x: 0, y: 12, z: 0 },
+        ];
+
+        generalLights.forEach((pos) => {
+          const generalLight = new THREE.PointLight(0xffffff, 0.3, 25);
+          generalLight.position.set(pos.x, pos.y, pos.z);
+          scene.add(generalLight);
+        });
+
+        // Luz direccional suave para las decoraciones
+        const decorativeLight1 = new THREE.DirectionalLight(0xffffff, 0.2);
+        decorativeLight1.position.set(25, 8, 25);
+        scene.add(decorativeLight1);
+
+        const decorativeLight2 = new THREE.DirectionalLight(0xffffff, 0.2);
+        decorativeLight2.position.set(-25, 8, -25);
+        scene.add(decorativeLight2);
+      }
+
+      // FUNCIÓN CORREGIDA PARA EVITAR Z-FIGHTING
+      function createArtwork(imageUrl, position, title, description) {
+        console.log(`Creando artwork: ${title} en posición:`, position);
+
+        const loader = new THREE.TextureLoader();
+        loader.crossOrigin = "anonymous";
+
+        loader.load(
+          imageUrl,
+          (texture) => {
+            console.log(`Textura cargada exitosamente para: ${title}`);
+
+            // Crear marco más elegante con detalles - POSICIONES Z CORREGIDAS
+            const frameGroup = new THREE.Group();
+
+            // Marco principal (en z = 0)
+            const frameGeometry = new THREE.BoxGeometry(8.5, 6.5, 0.4);
+            const frameMaterial = new THREE.MeshLambertMaterial({
+              color: 0x8b4513,
+            });
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.castShadow = true;
+            frameGroup.add(frame);
+
+            // Marco interior decorativo - SEPARACIÓN MAYOR
+            const innerFrameGeometry = new THREE.BoxGeometry(8.2, 6.2, 0.3);
+            const innerFrameMaterial = new THREE.MeshLambertMaterial({
+              color: 0xdaa520,
+            });
+            const innerFrame = new THREE.Mesh(
+              innerFrameGeometry,
+              innerFrameMaterial
+            );
+            innerFrame.position.z = 0.3; // AUMENTADO de 0.1 a 0.3
+            frameGroup.add(innerFrame);
+
+            // Crear cuadro - SEPARACIÓN MAYOR
+            const paintingGeometry = new THREE.PlaneGeometry(7.5, 5.6);
+            const paintingMaterial = new THREE.MeshLambertMaterial({
+              map: texture,
+            });
+            const painting = new THREE.Mesh(paintingGeometry, paintingMaterial);
+            painting.position.z = 0.5; // AUMENTADO de 0.25 a 0.5
+            frameGroup.add(painting);
+
+            // Placa informativa debajo del cuadro - SEPARACIÓN MAYOR
+            const plateGeometry = new THREE.BoxGeometry(6, 1, 0.1);
+            const plateMaterial = new THREE.MeshLambertMaterial({
+              color: 0x333333,
+            });
+            const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+            plate.position.set(0, -4, 0.6); // AUMENTADO de 0.3 a 0.6
+            plate.castShadow = true;
+            frameGroup.add(plate);
+
+            // Texto en la placa - SEPARACIÓN MAYOR
+            const canvas = document.createElement("canvas");
+            canvas.width = 512;
+            canvas.height = 128;
+            const context = canvas.getContext("2d");
+
+            context.fillStyle = "#333333";
+            context.fillRect(0, 0, 512, 128);
+
+            context.fillStyle = "#ffffff";
+            context.font = "bold 24px Arial";
+            context.textAlign = "center";
+            context.fillText(title, 256, 40);
+
+            context.font = "16px Arial";
+            const desc =
+              description.length > 40
+                ? description.substring(0, 37) + "..."
+                : description;
+            context.fillText(desc, 256, 70);
+
+            // Agregar año ficticio
+            context.font = "14px Arial";
+            context.fillText("2024", 256, 95);
+
+            const plateTexture = new THREE.CanvasTexture(canvas);
+            const textMaterial = new THREE.MeshLambertMaterial({
+              map: plateTexture,
+            });
+
+            const textPlane = new THREE.PlaneGeometry(6, 1);
+            const textMesh = new THREE.Mesh(textPlane, textMaterial);
+            textMesh.position.set(0, -4, 0.8); // AUMENTADO de 0.35 a 0.8
+            frameGroup.add(textMesh);
+
+            // Agrupar todo
+            const artwork = new THREE.Group();
+            artwork.add(frameGroup);
+            artwork.position.set(position.x, position.y, position.z);
+            artwork.rotation.y = position.angle || 0;
+            artwork.userData = { title, description, type: "artwork" };
+
+            scene.add(artwork);
+            artworks.push(artwork);
+
+            // Ocultar mensaje de galería vacía si es la primera obra
+            if (artworks.length === 1) {
+              document.getElementById("empty-message").style.display = "none";
+            }
+
+            console.log(
+              `Artwork agregado al museo. Total de obras: ${artworks.length}`
+            );
+          },
+          (progress) => {
+            console.log(
+              "Progreso de carga:",
+              (progress.loaded / progress.total) * 100 + "%"
+            );
+          },
+          (error) => {
+            console.error("Error al cargar la textura:", error);
+            console.log(
+              "Intentando crear artwork con color sólido como respaldo..."
+            );
+
+            // Crear artwork con color sólido como respaldo - TAMBIÉN CORREGIDO
+            const frameGroup = new THREE.Group();
+
+            const frameGeometry = new THREE.BoxGeometry(8.5, 6.5, 0.4);
+            const frameMaterial = new THREE.MeshLambertMaterial({
+              color: 0x8b4513,
+            });
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.castShadow = true;
+            frameGroup.add(frame);
+
+            // Crear cuadro con color sólido - SEPARACIÓN CORREGIDA
+            const paintingGeometry = new THREE.PlaneGeometry(7.5, 5.6);
+            const paintingMaterial = new THREE.MeshLambertMaterial({
+              color: 0x666666,
+            });
+            const painting = new THREE.Mesh(paintingGeometry, paintingMaterial);
+            painting.position.z = 0.5; // CORREGIDO
+            frameGroup.add(painting);
+
+            // Agregar texto indicando error
+            const canvas = document.createElement("canvas");
+            canvas.width = 512;
+            canvas.height = 384;
+            const context = canvas.getContext("2d");
+            context.fillStyle = "#444444";
+            context.fillRect(0, 0, 512, 384);
+            context.fillStyle = "white";
+            context.font = "24px Arial";
+            context.textAlign = "center";
+            context.fillText("Error al cargar", 256, 180);
+            context.fillText(title, 256, 220);
+
+            const errorTexture = new THREE.CanvasTexture(canvas);
+            painting.material.map = errorTexture;
+            painting.material.needsUpdate = true;
+
+            const artwork = new THREE.Group();
+            artwork.add(frameGroup);
+            artwork.position.set(position.x, position.y, position.z);
+            artwork.rotation.y = position.angle || 0;
+            artwork.userData = {
+              title: title + " (Error)",
+              description,
+              type: "artwork",
+            };
+
+            scene.add(artwork);
+            artworks.push(artwork);
+          }
+        );
+      }
+
+      function setupControls() {
+        // Pointer lock
+        renderer.domElement.addEventListener("click", () => {
+          renderer.domElement.requestPointerLock();
+        });
+
+        document.addEventListener("pointerlockchange", () => {
+          if (document.pointerLockElement === renderer.domElement) {
+            isPointerLocked = true;
+            document.getElementById("status").textContent =
+              "Controles activos - ESC para salir";
+            document.addEventListener("mousemove", onMouseMove);
+          } else {
+            isPointerLocked = false;
+            document.getElementById("status").textContent =
+              "Click para activar controles";
+            document.removeEventListener("mousemove", onMouseMove);
+          }
+        });
+      }
+
+      function setupEventListeners() {
+        // Teclado
+        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keyup", onKeyUp);
+
+        // Ventana
+        window.addEventListener("resize", onWindowResize);
+
+        // Subir imágenes
+        document
+          .getElementById("add-image")
+          .addEventListener("click", handleImageUpload);
+
+        // Raycasting para detectar obras
+        setInterval(checkArtworkLookAt, 100);
+      }
+
+      function onMouseMove(event) {
+        if (!isPointerLocked) return;
+
+        const sensitivity = 0.002;
+        yaw -= event.movementX * sensitivity;
+        pitch -= event.movementY * sensitivity;
+
+        // Limitar pitch
+        pitch = Math.max(
+          -Math.PI / 2 + 0.1,
+          Math.min(Math.PI / 2 - 0.1, pitch)
+        );
+
+        // Aplicar rotación a la cámara
+        camera.rotation.order = "YXZ";
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+      }
+
+      function checkArtworkLookAt() {
+        if (!isPointerLocked) return;
+
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        const intersects = raycaster.intersectObjects(artworks, true);
+
+        if (intersects.length > 0) {
+          const artwork =
+            intersects[0].object.parent.parent || intersects[0].object.parent;
+          if (
+            artwork.userData.type === "artwork" &&
+            artwork !== currentArtwork
+          ) {
+            showArtworkInfo(
+              artwork.userData.title,
+              artwork.userData.description
+            );
+            currentArtwork = artwork;
+          }
+        } else if (currentArtwork) {
+          hideArtworkInfo();
+          currentArtwork = null;
+        }
+      }
+
+      function showArtworkInfo(title, description) {
+        const info = document.getElementById("artwork-info");
+        document.getElementById("artwork-title").textContent = title;
+        document.getElementById("artwork-description").textContent =
+          description;
+        document.getElementById("artwork-details").textContent =
+          "Colección Personal • 2024 • Arte Digital";
+        info.classList.add("visible");
+      }
+
+      function hideArtworkInfo() {
+        document.getElementById("artwork-info").classList.remove("visible");
+      }
+
+      function onKeyDown(event) {
+        switch (event.code) {
+          case "KeyW":
+            moveForward = true;
+            break;
+          case "KeyS":
+            moveBackward = true;
+            break;
+          case "KeyA":
+            moveLeft = true;
+            break;
+          case "KeyD":
+            moveRight = true;
+            break;
+        }
+      }
+
+      function onKeyUp(event) {
+        switch (event.code) {
+          case "KeyW":
+            moveForward = false;
+            break;
+          case "KeyS":
+            moveBackward = false;
+            break;
+          case "KeyA":
+            moveLeft = false;
+            break;
+          case "KeyD":
+            moveRight = false;
+            break;
+        }
+      }
+
+      function handleImageUpload() {
+        const fileInput = document.getElementById("file-input");
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+          alert("Por favor selecciona al menos una imagen");
+          return;
+        }
+
+        const radius = 20; // Aumentamos el radio para la sala más grande
+
+        Array.from(files).forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            // Calcular posición para la nueva obra
+            const totalArtworks = artworks.length + index;
+            const angleStep = (2 * Math.PI) / Math.max(8, totalArtworks + 1); // Más espacio
+            const angle = angleStep * totalArtworks;
+            const x = Math.sin(angle) * radius;
+            const z = Math.cos(angle) * radius;
+
+            console.log(
+              `Cargando imagen: ${file.name} en posición (${x.toFixed(
+                2
+              )}, 7, ${z.toFixed(2)})`
+            );
+
+            createArtwork(
+              e.target.result,
+              { x, y: 7, z, angle: angle + Math.PI },
+              file.name.split(".")[0],
+              "Obra subida por el usuario - Una pieza única de tu colección personal"
+            );
+          };
+          reader.onerror = (error) => {
+            console.error("Error al cargar la imagen:", error);
+            alert(`Error al cargar ${file.name}`);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        fileInput.value = "";
+        alert(`Subiendo ${files.length} imagen(es) a la galería...`);
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        if (isPointerLocked) {
+          const time = performance.now();
+          const delta = (time - prevTime) / 1000;
+
+          // Aplicar fricción
+          velocity.x -= velocity.x * 8.0 * delta;
+          velocity.z -= velocity.z * 8.0 * delta;
+
+          // Calcular dirección de movimiento
+          direction.z = Number(moveForward) - Number(moveBackward);
+          direction.x = Number(moveRight) - Number(moveLeft);
+          direction.normalize();
+
+          // Aplicar movimiento relativo a la rotación de la cámara
+          if (moveForward || moveBackward) {
+            velocity.x -=
+              Math.sin(camera.rotation.y) * direction.z * 50.0 * delta;
+            velocity.z -=
+              Math.cos(camera.rotation.y) * direction.z * 50.0 * delta;
+          }
+          if (moveLeft || moveRight) {
+            velocity.x +=
+              Math.sin(camera.rotation.y + Math.PI / 2) *
+              direction.x *
+              50.0 *
+              delta;
+            velocity.z +=
+              Math.cos(camera.rotation.y + Math.PI / 2) *
+              direction.x *
+              50.0 *
+              delta;
+          }
+
+          // Aplicar velocidad a la posición
+          camera.position.x += velocity.x * delta;
+          camera.position.z += velocity.z * delta;
+
+          // Mantener altura fija
+          camera.position.y = 5;
+
+          // Limitar movimiento dentro de la sala (sala más grande)
+          const roomLimit = 20;
+          camera.position.x = Math.max(
+            -roomLimit,
+            Math.min(roomLimit, camera.position.x)
+          );
+          camera.position.z = Math.max(
+            -roomLimit,
+            Math.min(roomLimit, camera.position.z)
+          );
+
+          prevTime = time;
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      // Inicializar cuando se carga la página
+      init();
+    </script>
+  </body>
+</html>
