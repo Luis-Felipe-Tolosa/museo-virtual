@@ -1002,7 +1002,40 @@
         scene.add(decorativeLight2);
       }
 
-      // FUNCIÓN CORREGIDA PARA EVITAR Z-FIGHTING
+      // NUEVA FUNCIÓN PARA CALCULAR DIMENSIONES CON ASPECTO PRESERVADO
+      function calculateArtworkDimensions(imageWidth, imageHeight) {
+        const maxWidth = 9; // Ancho máximo del cuadro
+        const maxHeight = 7; // Alto máximo del cuadro
+        const aspectRatio = imageWidth / imageHeight;
+
+        let width, height;
+
+        // Si la imagen es más ancha que alta (landscape)
+        if (aspectRatio >= 1) {
+          width = Math.min(maxWidth, maxWidth);
+          height = width / aspectRatio;
+
+          // Si la altura calculada excede el máximo, ajustar por altura
+          if (height > maxHeight) {
+            height = maxHeight;
+            width = height * aspectRatio;
+          }
+        } else {
+          // Si la imagen es más alta que ancha (portrait)
+          height = Math.min(maxHeight, maxHeight);
+          width = height * aspectRatio;
+
+          // Si el ancho calculado excede el máximo, ajustar por ancho
+          if (width > maxWidth) {
+            width = maxWidth;
+            height = width / aspectRatio;
+          }
+        }
+
+        return { width, height };
+      }
+
+      // FUNCIÓN CORREGIDA PARA EVITAR Z-FIGHTING Y PRESERVAR ASPECTO
       function createArtwork(imageUrl, position, title, description) {
         console.log(`Creando artwork: ${title} en posición:`, position);
 
@@ -1014,11 +1047,34 @@
           (texture) => {
             console.log(`Textura cargada exitosamente para: ${title}`);
 
+            // Obtener dimensiones originales de la imagen
+            const imageWidth = texture.image.width;
+            const imageHeight = texture.image.height;
+            console.log(`Dimensiones originales: ${imageWidth}x${imageHeight}`);
+
+            // Calcular dimensiones preservando el aspecto
+            const { width, height } = calculateArtworkDimensions(
+              imageWidth,
+              imageHeight
+            );
+            console.log(
+              `Dimensiones ajustadas: ${width.toFixed(2)}x${height.toFixed(2)}`
+            );
+
             // Crear marco más elegante con detalles - POSICIONES Z CORREGIDAS
             const frameGroup = new THREE.Group();
 
+            // Dimensiones del marco (ligeramente más grandes que la imagen)
+            const frameWidth = width + 1;
+            const frameHeight = height + 1;
+            const frameDepth = 0.4;
+
             // Marco principal (en z = 0)
-            const frameGeometry = new THREE.BoxGeometry(8.5, 6.5, 0.4);
+            const frameGeometry = new THREE.BoxGeometry(
+              frameWidth,
+              frameHeight,
+              frameDepth
+            );
             const frameMaterial = new THREE.MeshLambertMaterial({
               color: 0x8b4513,
             });
@@ -1027,7 +1083,11 @@
             frameGroup.add(frame);
 
             // Marco interior decorativo - SEPARACIÓN MAYOR
-            const innerFrameGeometry = new THREE.BoxGeometry(8.2, 6.2, 0.3);
+            const innerFrameGeometry = new THREE.BoxGeometry(
+              frameWidth - 0.3,
+              frameHeight - 0.3,
+              0.3
+            );
             const innerFrameMaterial = new THREE.MeshLambertMaterial({
               color: 0xdaa520,
             });
@@ -1038,8 +1098,8 @@
             innerFrame.position.z = 0.3; // AUMENTADO de 0.1 a 0.3
             frameGroup.add(innerFrame);
 
-            // Crear cuadro - SEPARACIÓN MAYOR
-            const paintingGeometry = new THREE.PlaneGeometry(7.5, 5.6);
+            // Crear cuadro con dimensiones correctas - SEPARACIÓN MAYOR
+            const paintingGeometry = new THREE.PlaneGeometry(width, height);
             const paintingMaterial = new THREE.MeshLambertMaterial({
               map: texture,
             });
@@ -1048,12 +1108,13 @@
             frameGroup.add(painting);
 
             // Placa informativa debajo del cuadro - SEPARACIÓN MAYOR
-            const plateGeometry = new THREE.BoxGeometry(6, 1, 0.1);
+            const plateWidth = Math.min(frameWidth, 6);
+            const plateGeometry = new THREE.BoxGeometry(plateWidth, 1, 0.1);
             const plateMaterial = new THREE.MeshLambertMaterial({
               color: 0x333333,
             });
             const plate = new THREE.Mesh(plateGeometry, plateMaterial);
-            plate.position.set(0, -4, 0.6); // AUMENTADO de 0.3 a 0.6
+            plate.position.set(0, -(frameHeight / 2) - 1, 0.6); // AUMENTADO de 0.3 a 0.6
             plate.castShadow = true;
             frameGroup.add(plate);
 
@@ -1078,18 +1139,22 @@
                 : description;
             context.fillText(desc, 256, 70);
 
-            // Agregar año ficticio
-            context.font = "14px Arial";
-            context.fillText("2025", 256, 95);
+            // Agregar dimensiones de la imagen original
+            context.font = "12px Arial";
+            context.fillText(
+              `${imageWidth} × ${imageHeight} px • 2024`,
+              256,
+              95
+            );
 
             const plateTexture = new THREE.CanvasTexture(canvas);
             const textMaterial = new THREE.MeshLambertMaterial({
               map: plateTexture,
             });
 
-            const textPlane = new THREE.PlaneGeometry(6, 1);
+            const textPlane = new THREE.PlaneGeometry(plateWidth, 1);
             const textMesh = new THREE.Mesh(textPlane, textMaterial);
-            textMesh.position.set(0, -4, 0.8); // AUMENTADO de 0.35 a 0.8
+            textMesh.position.set(0, -(frameHeight / 2) - 1, 0.8); // AUMENTADO de 0.35 a 0.8
             frameGroup.add(textMesh);
 
             // Agrupar todo
@@ -1097,7 +1162,15 @@
             artwork.add(frameGroup);
             artwork.position.set(position.x, position.y, position.z);
             artwork.rotation.y = position.angle || 0;
-            artwork.userData = { title, description, type: "artwork" };
+            artwork.userData = {
+              title,
+              description,
+              type: "artwork",
+              dimensions: `${imageWidth} × ${imageHeight} px`,
+              displaySize: `${width.toFixed(1)} × ${height.toFixed(
+                1
+              )} unidades`,
+            };
 
             scene.add(artwork);
             artworks.push(artwork);
@@ -1126,7 +1199,17 @@
             // Crear artwork con color sólido como respaldo - TAMBIÉN CORREGIDO
             const frameGroup = new THREE.Group();
 
-            const frameGeometry = new THREE.BoxGeometry(8.5, 6.5, 0.4);
+            // Usar dimensiones estándar para respaldo
+            const width = 7;
+            const height = 5;
+            const frameWidth = width + 1;
+            const frameHeight = height + 1;
+
+            const frameGeometry = new THREE.BoxGeometry(
+              frameWidth,
+              frameHeight,
+              0.4
+            );
             const frameMaterial = new THREE.MeshLambertMaterial({
               color: 0x8b4513,
             });
@@ -1135,7 +1218,7 @@
             frameGroup.add(frame);
 
             // Crear cuadro con color sólido - SEPARACIÓN CORREGIDA
-            const paintingGeometry = new THREE.PlaneGeometry(7.5, 5.6);
+            const paintingGeometry = new THREE.PlaneGeometry(width, height);
             const paintingMaterial = new THREE.MeshLambertMaterial({
               color: 0x666666,
             });
@@ -1248,7 +1331,9 @@
           ) {
             showArtworkInfo(
               artwork.userData.title,
-              artwork.userData.description
+              artwork.userData.description,
+              artwork.userData.dimensions,
+              artwork.userData.displaySize
             );
             currentArtwork = artwork;
           }
@@ -1258,13 +1343,21 @@
         }
       }
 
-      function showArtworkInfo(title, description) {
+      function showArtworkInfo(title, description, dimensions, displaySize) {
         const info = document.getElementById("artwork-info");
         document.getElementById("artwork-title").textContent = title;
         document.getElementById("artwork-description").textContent =
           description;
-        document.getElementById("artwork-details").textContent =
-          "Colección Personal • 2024 • Arte Digital";
+
+        let details = "Colección Personal • 2024 • Arte Digital";
+        if (dimensions) {
+          details += ` • ${dimensions}`;
+        }
+        if (displaySize) {
+          details += ` • Mostrado: ${displaySize}`;
+        }
+
+        document.getElementById("artwork-details").textContent = details;
         info.classList.add("visible");
       }
 
